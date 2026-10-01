@@ -34,7 +34,8 @@ var update = flag.Bool("update", false, "rewrite the expected files with the gen
 // nonGoldenFixtures are the testdata directories used by other tests, which
 // TestGenerator_withTestData skips.
 var nonGoldenFixtures = map[string]bool{
-	"multi_config": true,
+	"multi_config":         true,
+	"field_name_collision": true, // expects an error; see TestGenerator_fieldNameCollision
 }
 
 func (s *Suite) TestGenerator_withTestData() {
@@ -127,6 +128,25 @@ func (s *Suite) TestGenerator_nilGenerateConfig() {
 		err = generator.Generate(context.Background(), cfg)
 	})
 	s.Require().NoError(err)
+}
+
+// TestGenerator_fieldNameCollision verifies that two response keys that map to the
+// same Go identifier are reported as an error instead of panicking (#108).
+func (s *Suite) TestGenerator_fieldNameCollision() {
+	s.useDirForTest(filepath.Join("testdata", "field_name_collision"))
+
+	cfg, err := config.LoadConfig("./gqlgenc.yml")
+	s.Require().NoError(err)
+
+	cfg.GQLConfig.SkipValidation = true
+	cfg.GQLConfig.SkipModTidy = true
+
+	s.Require().NotPanics(func() {
+		err = generator.Generate(context.Background(), cfg)
+	})
+	s.Require().ErrorContains(err, "foo_bar")
+	s.Require().ErrorContains(err, "fooBar")
+	s.Require().ErrorContains(err, "FooBar")
 }
 
 // useDirForTest removes the actual output of a previous run and changes the

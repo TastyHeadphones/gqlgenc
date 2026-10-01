@@ -1,0 +1,3 @@
+type FooBar { v: Int! }
+type Object { foo_bar: FooBar fooBar: FooBar }
+type Query { obj: Object }

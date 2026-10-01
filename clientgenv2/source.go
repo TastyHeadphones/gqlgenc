@@ -86,6 +86,11 @@ func (s *Source) Fragments() ([]*Fragment, error) {
 		fragments = append(fragments, fragment)
 	}
 
+	err := s.sourceGenerator.FieldNameCollisionError()
+	if err != nil {
+		return nil, fmt.Errorf("response field names collide: %w", err)
+	}
+
 	for _, fragment := range fragments {
 		name := fragment.Name
 		s.sourceGenerator.cfg.Models.Add(
@@ -205,6 +210,11 @@ func (s *Source) OperationResponses() ([]*OperationResponse, error) {
 			Name: name,
 			Type: responseFields.StructType(),
 		})
+	}
+
+	err := s.sourceGenerator.FieldNameCollisionError()
+	if err != nil {
+		return nil, fmt.Errorf("response field names collide: %w", err)
 	}
 
 	for _, operationResponse := range operationResponse {
