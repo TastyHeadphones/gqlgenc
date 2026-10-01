@@ -34,7 +34,8 @@ var update = flag.Bool("update", false, "rewrite the expected files with the gen
 // nonGoldenFixtures are the testdata directories used by other tests, which
 // TestGenerator_withTestData skips.
 var nonGoldenFixtures = map[string]bool{
-	"multi_config": true,
+	"multi_config":         true,
+	"field_name_collision": true, // expects an error; see TestGenerator_fieldNameCollision
 }
 
 func (s *Suite) TestGenerator_withTestData() {
@@ -132,7 +133,7 @@ func (s *Suite) TestGenerator_nilGenerateConfig() {
 // TestGenerator_fieldNameCollision verifies that two response keys that map to the
 // same Go identifier are reported as an error instead of panicking (#108).
 func (s *Suite) TestGenerator_fieldNameCollision() {
-	s.useDirForTest(filepath.Join("testdata_error", "field_name_collision"))
+	s.useDirForTest(filepath.Join("testdata", "field_name_collision"))
 
 	cfg, err := config.LoadConfig("./gqlgenc.yml")
 	s.Require().NoError(err)

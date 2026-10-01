@@ -1,6 +1,7 @@
 package clientgenv2
 
 import (
+	"errors"
 	"fmt"
 	"go/types"
 	"slices"
@@ -218,6 +219,10 @@ type SourceGenerator struct {
 	client         config.PackageConfig
 	generateConfig *gqlgencConfig.GenerateConfig
 	StructSources  []*StructSource
+
+	// fieldNameCollisions records selection sets whose response keys map to the
+	// same Go identifier; NewResponseFields cannot return an error itself.
+	fieldNameCollisions []error
 }
 
 func NewSourceGenerator(cfg *config.Config, client config.PackageConfig, generateConfig *gqlgencConfig.GenerateConfig) *SourceGenerator {
@@ -234,12 +239,76 @@ func NewSourceGenerator(cfg *config.Config, client config.PackageConfig, generat
 }
 
 func (r *SourceGenerator) NewResponseFields(selectionSet ast.SelectionSet, typeName string) ResponseFieldList {
+	// Check before building any field: NewResponseField builds the struct types of
+	// nested selections eagerly, and go/types panics on duplicate field names.
+	err := checkGoNameCollision(selectionSet, typeName)
+	if err != nil {
+		r.fieldNameCollisions = append(r.fieldNameCollisions, err)
+
+		return nil
+	}
+
 	responseFields := make(ResponseFieldList, 0, len(selectionSet))
 	for _, selection := range selectionSet {
 		responseFields = append(responseFields, r.NewResponseField(selection, typeName))
 	}
 
 	return responseFields
+}
+
+// FieldNameCollisionError returns the response keys that collide once converted to Go identifiers.
+//
+// Arguments:
+//   - none
+//
+// Returns:
+//   - error: nil if every selection set seen so far maps to distinct Go field names,
+//     otherwise one error per colliding selection set, joined
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - the recorded collisions are kept; calling again returns the same error
+func (r *SourceGenerator) FieldNameCollisionError() error {
+	return errors.Join(r.fieldNameCollisions...)
+}
+
+// checkGoNameCollision reports response keys of field selections that map to the same Go identifier.
+//
+// Arguments:
+//   - selectionSet: the selections of one object
+//   - typeName: the name of the struct the fields belong to, for the message
+//
+// Returns:
+//   - error: nil if the Go field names of all field selections are distinct, otherwise an error
+//     naming the struct, the colliding response keys, and the shared Go identifier
+//
+// Preconditions:
+//   - none
+//
+// Postconditions:
+//   - fragment spreads and inline fragments are not inspected; their own selection sets are
+//     checked when they are built
+func checkGoNameCollision(selectionSet ast.SelectionSet, typeName string) error {
+	responseKeyByGoName := make(map[string]string, len(selectionSet))
+
+	for _, selection := range selectionSet {
+		field, ok := selection.(*ast.Field)
+		if !ok {
+			continue
+		}
+
+		goName := templates.ToGo(field.Alias)
+
+		if previous, exists := responseKeyByGoName[goName]; exists && previous != field.Alias {
+			return fmt.Errorf("%s: response keys %q and %q both become the Go field %s; alias one of them in the query", typeName, previous, field.Alias, goName)
+		}
+
+		responseKeyByGoName[goName] = field.Alias
+	}
+
+	return nil
 }
 
 func NewLayerTypeName(base, thisField string) string {
