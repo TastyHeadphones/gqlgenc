@@ -129,6 +129,25 @@ func (s *Suite) TestGenerator_nilGenerateConfig() {
 	s.Require().NoError(err)
 }
 
+// TestGenerator_fieldNameCollision verifies that two response keys that map to the
+// same Go identifier are reported as an error instead of panicking (#108).
+func (s *Suite) TestGenerator_fieldNameCollision() {
+	s.useDirForTest(filepath.Join("testdata_error", "field_name_collision"))
+
+	cfg, err := config.LoadConfig("./gqlgenc.yml")
+	s.Require().NoError(err)
+
+	cfg.GQLConfig.SkipValidation = true
+	cfg.GQLConfig.SkipModTidy = true
+
+	s.Require().NotPanics(func() {
+		err = generator.Generate(context.Background(), cfg)
+	})
+	s.Require().ErrorContains(err, "foo_bar")
+	s.Require().ErrorContains(err, "fooBar")
+	s.Require().ErrorContains(err, "FooBar")
+}
+
 // useDirForTest removes the actual output of a previous run and changes the
 // working directory to dir for the rest of the test; t.Chdir restores it.
 func (s *Suite) useDirForTest(dir string) {

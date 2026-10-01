@@ -1,0 +1,3 @@
+# foo_bar と fooBar は Go の識別子にすると両方 FooBar になり衝突する
+# foo_bar and fooBar both become FooBar as Go identifiers and collide
+query Q { obj { foo_bar { v } fooBar { v } } }
