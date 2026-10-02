@@ -1,0 +1,15 @@
+schema:
+  - ./schemas/*.graphql
+model:
+  filename: ./actual/models_gen.go
+  package: model
+client:
+  filename: ./actual/client_gen.go
+  package: model
+autobind:
+  - github.com/gqlgo/gqlgenc/generator/testdata/autobind_same_package_name/model
+query:
+  - ./queries/*.graphql
+generate:
+  clientV2: true
+  onlyUsedModels: true
