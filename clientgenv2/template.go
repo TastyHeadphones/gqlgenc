@@ -202,13 +202,19 @@ func (g *GenGettersGenerator) returnTypeName(t types.Type, nested bool) (string,
 
 		return "[]" + elem, nil
 	case *types.Named:
-		s := strings.Split(it.String(), ".")
-		name := s[len(s)-1]
-
-		// Types from the universe scope such as error have no package.
-		isImported := it.Obj().Pkg() != nil && it.Obj().Pkg().Name() != g.ClientPackageName
-		if isImported {
-			name = namedTypeString(it)
+		// Prefer gqlgen's import-aware printer so getters agree with struct
+		// field tags when two packages share a name (same client package name
+		// as an autobound import, or two autobound packages both named
+		// "domain"). Fall back to the name comparison when no render is in
+		// progress (unit tests).
+		var name string
+		if templates.CurrentImports != nil {
+			name = templates.CurrentImports.LookupType(it)
+		} else {
+			name = it.Obj().Name()
+			if it.Obj().Pkg() != nil && it.Obj().Pkg().Name() != g.ClientPackageName {
+				name = namedTypeString(it)
+			}
 		}
 
 		if nested {
