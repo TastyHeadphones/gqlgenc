@@ -207,7 +207,8 @@ func Generate(ctx context.Context, cfg *config.Config) error {
 	// onlyUsedModels may empty the model build after gqlgen's empty-build
 	// guard, which still writes a package-clause-only models file. Drop that
 	// file so the output matches the "no models" case.
-	if err := removePackageClauseOnlyModel(cfg); err != nil {
+	err = removePackageClauseOnlyModel(cfg)
+	if err != nil {
 		return err
 	}
 
@@ -225,7 +226,8 @@ func removePackageClauseOnlyModel(cfg *config.Config) error {
 	if !isPackageClauseOnly(cfg.Model.Filename) {
 		return nil
 	}
-	if err := os.Remove(cfg.Model.Filename); err != nil && !os.IsNotExist(err) {
+	err := os.Remove(cfg.Model.Filename)
+	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove empty model file: %w", err)
 	}
 	if cfg.GQLConfig.Packages != nil {
